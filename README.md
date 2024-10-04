@@ -9,6 +9,65 @@ This sample code real-time audio interaction using OpenAI's WebSocket API for GP
 - **Real-time Response**: The OpenAI server responds with real-time audio chunks, which are played directly from memory using the `speaker` library.
 - **Real-time Playback**: The audio is played as it is received without needing to save the audio to a file.
 
+## WebSocket Connection and Audio Setup
+
+First, configure the WebSocket connection to OpenAI's API and set up the speaker to play the real-time audio response.
+
+```javascript
+const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01";
+const ws = new WebSocket(url, {
+    headers: {
+        "Authorization": "Bearer " + process.env.OPENAI_API_KEY,
+        "OpenAI-Beta": "realtime=v1",
+    },
+});
+
+```
+
+## Setting up the live playback
+
+The `speaker` library is used to play the real-time audio response. The audio chunks received from the OpenAI server are appended to the speaker buffer for live playback.
+
+```javascript
+const speaker = new Speaker({
+    channels: numChannels,          // 1 channel (mono)
+    bitDepth: 16,                   // 16-bit samples
+    sampleRate: sampleRate          // 24,000 Hz sample rate
+});
+
+```
+
+## On-Message Event Handler
+
+The `onmessage` event handler is used to process the WebSocket messages received from the OpenAI server. The audio chunks are appended to the speaker buffer for real-time playback.
+
+```javascript
+
+ws.on("message", function incoming(message) {
+    const parsedMessage = JSON.parse(message.toString());
+    console.log("Message received from server:", parsedMessage);
+
+    // Handle audio delta events
+    if (parsedMessage.type === 'response.audio.delta' && parsedMessage.delta) {
+        const base64Audio = parsedMessage.delta;
+        appendBase64AudioToSpeaker(base64Audio); // Play audio chunk in real-time
+    }
+
+    // Handle the response.audio.done event
+    if (parsedMessage.type === 'response.audio.done') {
+        console.log("Audio generation done.");
+        speaker.end(); // End the speaker stream
+    }
+
+    // If the message contains content, print it in detail
+    if (parsedMessage.item && parsedMessage.item.content) {
+        console.log("Message content:", JSON.stringify(parsedMessage.item.content, null, 2));
+    }
+});
+
+```
+
+
 ## Prerequisites
 
 - Node.js (v14+)
